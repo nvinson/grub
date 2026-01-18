@@ -24,7 +24,10 @@
 
 void EXPORT_FUNC (grub_bios_interrupt) (grub_uint8_t intno,
 					struct grub_bios_int_registers *regs)
-     __attribute__ ((regparm(3)));
+#if defined(__i386__) && !defined(__x86_64__)
+     __attribute__ ((regparm(3)))
+#endif
+;
 
 #ifdef GRUB_MACHINE_PCBIOS
 extern struct grub_i386_idt *EXPORT_VAR(grub_realidt);

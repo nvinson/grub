@@ -1469,7 +1469,13 @@ else
   TARGET_IMG_LDSCRIPT=
   TARGET_IMG_LDFLAGS='-Wl,-N'
   TARGET_IMG_LDFLAGS_AC='-Wl,-N'
-  TARGET_IMG_BASE_LDOPT="-Wl,-Ttext"
+  if test "x$target_cpu-$platform" != "xi386-pc"; then
+    TARGET_IMG_BASE_LDOPT="-Wl,-Ttext"
+  else
+    TARGET_IMG_BASE_LDOPT="-Wl,--defsym,_grub_text_base"
+    TARGET_IMG_LDSCRIPT='$(top_srcdir)'"/conf/i386-pc-kernel.lds"
+    TARGET_IMG_LDFLAGS_AC="-Wl,-T${srcdir}/conf/i386-pc-kernel.lds"
+  fi
   TARGET_IMG_CFLAGS=
 fi
 
@@ -1802,7 +1808,18 @@ if test "x$target_cpu" = xi386; then
   if test "$platform" != emu && test "x$TARGET_APPLE_LINKER" != x1 ; then
     if test ! -z "$TARGET_IMG_LDSCRIPT"; then
       # Check symbols provided by linker script.
-      CFLAGS="$TARGET_CFLAGS -nostdlib ${TARGET_IMG_LDFLAGS_AC} ${TARGET_IMG_BASE_LDOPT},0x8000"
+      target_img_base_ld="${TARGET_IMG_BASE_LDOPT}"
+      case "$target_img_base_ld" in
+        *_grub_text_base)
+          target_img_base_ld="${target_img_base_ld}="
+        ;;
+        *)
+          target_img_base_ld="${target_img_base_ld},"
+        ;;
+      esac
+      target_img_base_ld="${target_img_base_ld}0x8000"
+      CFLAGS="$TARGET_CFLAGS -nostdlib ${TARGET_IMG_LDFLAGS_AC} ${target_img_base_ld}"
+      target_img_base_ld=""
     fi
     grub_CHECK_BSS_START_SYMBOL
     grub_CHECK_END_SYMBOL

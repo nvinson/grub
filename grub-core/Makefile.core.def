@@ -82,7 +82,8 @@ kernel = {
   riscv64_efi_stripflags   = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
 
   i386_pc_ldflags          = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags          = '$(TARGET_IMG_BASE_LDOPT),0x9000';
+  i386_pc_ldflags          = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags          = '$(TARGET_IMG_BASE_LDOPT)=0x9000';
   i386_qemu_ldflags        = '$(TARGET_IMG_LDFLAGS)';
   i386_qemu_ldflags        = '$(TARGET_IMG_BASE_LDOPT),0x9000';
   i386_coreboot_ldflags    = '$(TARGET_IMG_LDFLAGS)';
@@ -449,8 +450,11 @@ image = {
   i386_qemu = boot/i386/qemu/boot.S;
   sparc64_ieee1275 = boot/sparc64/ieee1275/boot.S;
 
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
+
   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
+  i386_pc_ldflags = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)=0x7C00';
 
   i386_qemu_ldflags = '$(TARGET_IMG_LDFLAGS)';
   i386_qemu_ldflags = '$(TARGET_IMG_BASE_LDOPT),$(GRUB_BOOT_MACHINE_LINK_ADDR)';
@@ -475,10 +479,13 @@ image = {
   name = boot_hybrid;
   i386_pc = boot/i386/pc/boot.S;
 
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
+
   cppflags = '-DHYBRID_BOOT=1';
   
   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
+  i386_pc_ldflags = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)=0x7C00';
 
   objcopyflags = '-O binary';
   enable = i386_pc;
@@ -486,10 +493,13 @@ image = {
 
 image = {
   name = cdboot;
-
   i386_pc = boot/i386/pc/cdboot.S;
+
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
+
   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
+  i386_pc_ldflags = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)=0x7C00';
 
   sparc64_ieee1275 = boot/sparc64/ieee1275/boot.S;
 
@@ -508,8 +518,11 @@ image = {
   name = pxeboot;
   i386_pc = boot/i386/pc/pxeboot.S;
 
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
+
   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
+  i386_pc_ldflags = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)=0x7C00';
 
   objcopyflags = '-O binary';
   enable = i386_pc;
@@ -519,8 +532,11 @@ image = {
   name = diskboot;
   i386_pc = boot/i386/pc/diskboot.S;
 
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
+
   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x8000';
+  i386_pc_ldflags = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)=0x8000';
 
   sparc64_ieee1275 = boot/sparc64/ieee1275/diskboot.S;
   sparc64_ieee1275_ldflags = '-Wl,-Ttext=0x4200';
@@ -535,8 +551,11 @@ image = {
   name = lnxboot;
   i386_pc = boot/i386/pc/lnxboot.S;
 
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
+
   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x6000';
+  i386_pc_ldflags = '-Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld';
+  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)=0x6000';
 
   objcopyflags = '-O binary';
   enable = i386_pc;
@@ -576,10 +595,11 @@ image = {
   name = lzma_decompress;
   i386_pc = boot/i386/pc/startup_raw.S;
   i386_pc_nodist = rs_decoder.h;
+  i386_pc_extra_dist = '$(top_srcdir)/conf/i386-pc-kernel.ld';
 
   objcopyflags = '-O binary';
-  ldflags = '$(TARGET_IMG_LDFLAGS) $(TARGET_IMG_BASE_LDOPT),0x8200';
-  enable = i386_pc;
+  ldflags = '$(TARGET_IMG_LDFLAGS) -Wl,-T$(top_srcdir)/conf/i386-pc-kernel.ld $(TARGET_IMG_BASE_LDOPT)=0x8200';
+  lnable = i386_pc;
 };
 
 image = {

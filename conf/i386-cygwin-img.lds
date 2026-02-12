@@ -2,6 +2,7 @@
 
 SECTIONS
 {
+  . = _grub_image_base;
   .text :
   {
     start = . ;

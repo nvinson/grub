@@ -1453,8 +1453,8 @@ if test x$grub_cv_target_cc_link_format = x-arch,i386 || test x$grub_cv_target_c
    TARGET_IMG_CFLAGS="-static"
    TARGET_IMG_LDFLAGS='-nostdlib -static -Wl,-preload -Wl,-segalign,20'
    TARGET_IMG_LDFLAGS_AC='-nostdlib -static -Wl,-preload -Wl,-segalign,20'
-   TARGET_IMG_BASE_LDOPT="-Wl,-image_base"
-   TARGET_IMG_BASE_LDOPT_ARG_SEP=","
+   TARGET_IMG_BASE_LDOPT="-Wl,--defsym,_grub_text_base"
+   TARGET_IMG_BASE_LDOPT_ARG_SEP="="
    TARGET_LDFLAGS_OLDMAGIC=""
 elif test x$grub_cv_target_cc_link_format = x-mi386pe || test x$grub_cv_target_cc_link_format = x-mi386pep ; then
   TARGET_APPLE_LINKER=0

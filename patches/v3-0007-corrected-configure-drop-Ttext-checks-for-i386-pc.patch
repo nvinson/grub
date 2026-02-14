@@ -1,0 +1,114 @@
+From ec924c9e768d0b23ac1efe733ea3a91b5be8cf33 Mon Sep 17 00:00:00 2001
+Message-ID: <ec924c9e768d0b23ac1efe733ea3a91b5be8cf33.1771028573.git.nvinson234@gmail.com>
+In-Reply-To: <cover.1771028573.git.nvinson234@gmail.com>
+References: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Tue, 20 Jan 2026 20:05:02 -0500
+Subject: [PATCH v3 7/9] [corrected] configure: drop -Ttext checks for i386-pc
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+The i386-pc target now uses a linker script, so -Ttext is no longer
+required.
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+---
+ acinclude.m4 | 13 ++++++++++++-
+ configure.ac | 29 ++++++++++++++++++++++++++---
+ 2 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/acinclude.m4 b/acinclude.m4
+index fa7840f09..478aab6d3 100644
+--- a/acinclude.m4
++++ b/acinclude.m4
+@@ -93,7 +93,18 @@ else
+ fi
+ grub_cv_prog_objcopy_absolute=yes
+ for link_addr in 0x2000 0x8000 0x7C00; do
+-  if AC_TRY_COMMAND([${CC-cc} ${TARGET_CFLAGS} ${TARGET_LDFLAGS} -nostdlib ${TARGET_IMG_LDFLAGS_AC} ${TARGET_IMG_BASE_LDOPT},$link_addr conftest.o -o conftest.exec]); then :
++
++  target_img_base_ld="${TARGET_IMG_BASE_LDOPT}"
++  case "$target_img_base_ld" in
++    *_grub_text_base)
++      target_img_base_ld="${target_img_base_ld}=$link_addr"
++    ;;
++    *)
++      target_img_base_ld="${target_img_base_ld},$link_addr"
++    ;;
++  esac
++
++  if AC_TRY_COMMAND([${CC-cc} ${TARGET_CFLAGS} ${TARGET_LDFLAGS} -nostdlib ${TARGET_IMG_LDFLAGS_AC} ${target_img_base_ld} conftest.o -o conftest.exec]); then :
+   else
+     AC_MSG_ERROR([${CC-cc} cannot link at address $link_addr])
+   fi
+diff --git a/configure.ac b/configure.ac
+index 3106bb11d..4febd084d 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1454,6 +1454,7 @@ if test x$grub_cv_target_cc_link_format = x-arch,i386 || test x$grub_cv_target_c
+    TARGET_IMG_LDFLAGS='-nostdlib -static -Wl,-preload -Wl,-segalign,20'
+    TARGET_IMG_LDFLAGS_AC='-nostdlib -static -Wl,-preload -Wl,-segalign,20'
+    TARGET_IMG_BASE_LDOPT="-Wl,-image_base"
++   TARGET_IMG_BASE_LDOPT_ARG_SEP=","
+    TARGET_LDFLAGS_OLDMAGIC=""
+ elif test x$grub_cv_target_cc_link_format = x-mi386pe || test x$grub_cv_target_cc_link_format = x-mi386pep ; then
+   TARGET_APPLE_LINKER=0
+@@ -1461,7 +1462,8 @@ elif test x$grub_cv_target_cc_link_format = x-mi386pe || test x$grub_cv_target_c
+   TARGET_IMG_LDSCRIPT='$(top_srcdir)'"/conf/i386-cygwin-img.lds"
+   TARGET_IMG_LDFLAGS="-Wl,-T${TARGET_IMG_LDSCRIPT}"
+   TARGET_IMG_LDFLAGS_AC="-Wl,-T${srcdir}/conf/i386-cygwin-img.lds"
+   TARGET_IMG_BASE_LDOPT="-Wl,-Ttext"
++  TARGET_IMG_BASE_LDOPT_ARG_SEP=","
+   TARGET_IMG_CFLAGS=
+ else
+   TARGET_APPLE_LINKER=0
+@@ -1469,7 +1471,16 @@ else
+   TARGET_IMG_LDSCRIPT=
+   TARGET_IMG_LDFLAGS='-Wl,-N'
+   TARGET_IMG_LDFLAGS_AC='-Wl,-N'
+-  TARGET_IMG_BASE_LDOPT="-Wl,-Ttext"
++  if test "x$target_cpu-$platform" != "xi386-pc"; then
++    TARGET_IMG_BASE_LDOPT="-Wl,-Ttext"
++    TARGET_IMG_BASE_LDOPT_ARG_SEP=","
++  else
++    TARGET_IMG_BASE_LDOPT="-Wl,--defsym,_grub_text_base"
++    TARGET_IMG_BASE_LDOPT_ARG_SEP="="
++    TARGET_IMG_LDSCRIPT='$(top_srcdir)'"/conf/i386-pc-kernel.lds"
++    TARGET_IMG_LDFLAGS="${TARGET_IMG_LDFLAGS} -Wl,-T${TARGET_IMG_LDSCRIPT}"
++    TARGET_IMG_LDFLAGS_AC="-Wl,-T${srcdir}/conf/i386-pc-kernel.lds"
++  fi
+   TARGET_IMG_CFLAGS=
+ fi
+ 
+@@ -1802,7 +1813,18 @@ if test "x$target_cpu" = xi386; then
+   if test "$platform" != emu && test "x$TARGET_APPLE_LINKER" != x1 ; then
+     if test ! -z "$TARGET_IMG_LDSCRIPT"; then
+       # Check symbols provided by linker script.
+-      CFLAGS="$TARGET_CFLAGS -nostdlib ${TARGET_IMG_LDFLAGS_AC} ${TARGET_IMG_BASE_LDOPT},0x8000"
++      target_img_base_ld="${TARGET_IMG_BASE_LDOPT}"
++      case "$target_img_base_ld" in
++        *_grub_text_base)
++          target_img_base_ld="${target_img_base_ld}="
++        ;;
++        *)
++          target_img_base_ld="${target_img_base_ld},"
++        ;;
++      esac
++      target_img_base_ld="${target_img_base_ld}0x8000"
++      CFLAGS="$TARGET_CFLAGS -nostdlib ${TARGET_IMG_LDFLAGS_AC} ${target_img_base_ld}"
++      target_img_base_ld=""
+     fi
+     grub_CHECK_BSS_START_SYMBOL
+     grub_CHECK_END_SYMBOL
+@@ -2404,6 +2426,7 @@ AC_SUBST(TARGET_CCASFLAGS)
+ AC_SUBST(TARGET_IMG_LDFLAGS)
+ AC_SUBST(TARGET_IMG_CFLAGS)
+ AC_SUBST(TARGET_IMG_BASE_LDOPT)
++AC_SUBST(TARGET_IMG_BASE_LDOPT_ARG_SEP)
+ AC_SUBST(TARGET_APPLE_LINKER)
+ 
+ AC_SUBST(HOST_CFLAGS)
+-- 
+2.53.0
+

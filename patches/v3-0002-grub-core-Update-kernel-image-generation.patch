@@ -1,0 +1,232 @@
+From cb5bba6fd5c04cd7cb9ca2f1bd8d2eb3b66a405f Mon Sep 17 00:00:00 2001
+Message-ID: <cb5bba6fd5c04cd7cb9ca2f1bd8d2eb3b66a405f.1771028573.git.nvinson234@gmail.com>
+In-Reply-To: <cover.1771028573.git.nvinson234@gmail.com>
+References: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Sun, 18 Jan 2026 17:01:36 -0500
+Subject: [PATCH v3 2/9] grub-core: Update kernel image generation
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+The i386-pc kernel image fails to build because of changes made to
+address ld.lld-21 and newer linking issues. Specifically, with
+ld.lld-21, if you try to set the text section address below image base
+address when linking a non-relocatable binary, ld.lld wil fail to link.
+
+Switching to using a customized linker script solves the issue and is a
+more robost solution to supporting multiple linkers than attempting to
+find a set of command-line flags that satisified all supported linkers
+and links the kernel properly. In the worst case, continued use of
+command-line flags could result in having to create code branches to
+support various linkers.
+
+For example, when dealing with just ld.bfd and ld.lld, the behavioral
+differences between the two made finding a proper subset of flags that
+worked impossible. The previous attempt dropped -Ttext for --image-base,
+which has been proven not to work. The simplest correction,
+-Wl,--image-base=0 -Wl,-Ttext, did not work because that option resulted
+in a GRUB kernel that entered into a tight infinite refresh loop.
+
+Moreover, ld.lld does not order the sections the same way ld.bfd does,
+and that results in object files with gaps or holes when sections are
+stripped. I suspect, but did not investigate, that this plays a role in
+the infinite refresh loop I mentioned earlier.
+
+The easiest way to resolve all this is to use customized linker scripts.
+These scripts, by default, override any default configuration the linker
+would otherwise impose, allow for complete control in aligning sections,
+and allows GRUB to specify where in the load segment each section goes.
+
+This change does require linkers to support the --defsym flag, which
+requires its argument to be of the form 'sym=address' as 'sym address'
+is not supported.
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+---
+ conf/Makefile.extra-dist    |  1 +
+ conf/i386-pc-kernel.lds     | 51 +++++++++++++++++++++++++++++++++++++
+ grub-core/Makefile.core.def | 31 +++++++++++-----------
+ 3 files changed, 68 insertions(+), 15 deletions(-)
+ create mode 100644 conf/i386-pc-kernel.lds
+
+diff --git a/conf/Makefile.extra-dist b/conf/Makefile.extra-dist
+index d22b6c862..892df8208 100644
+--- a/conf/Makefile.extra-dist
++++ b/conf/Makefile.extra-dist
+@@ -17,6 +17,7 @@ EXTRA_DIST += docs/grub.cfg
+ EXTRA_DIST += docs/osdetect.cfg
+ 
+ EXTRA_DIST += conf/i386-cygwin-img-ld.sc
++EXTRA_DIST += conf/i386-pc-kernel.lds
+ 
+ EXTRA_DIST += grub-core/Makefile.core.def
+ EXTRA_DIST += grub-core/Makefile.gcry.def
+diff --git a/conf/i386-pc-kernel.lds b/conf/i386-pc-kernel.lds
+new file mode 100644
+index 000000000..d40c7736c
+--- /dev/null
++++ b/conf/i386-pc-kernel.lds
+@@ -0,0 +1,51 @@
++ENTRY(_start)
++
++/*
++ * Align sections to a 16-byte boundary. This guarantees ABI compatibility with
++ * C generated code
++ */
++SECTION_ALIGN = 0x10;
++
++PHDRS {
++    text PT_LOAD FLAGS(7) /* PF_R | PF_W | PF_X */;
++}
++
++SECTIONS
++{
++    /*
++     * Set section alignment to 1. This allows sections to be aligned without
++     * creating holes in the VMA space or gaps in the file.
++     */
++    . = _grub_text_base;
++    .text ALIGN(0x1) : {
++        _start = .;
++        *(.text .text.*)
++        . = ALIGN(SECTION_ALIGN);
++    } :text
++    .rodata ALIGN(0x1) : {
++        *(.rodata .rodata.*)
++        . = ALIGN(SECTION_ALIGN);
++    } :text
++    .module_license ALIGN(0x1) : {
++        *(.module_license)
++        . = ALIGN(SECTION_ALIGN);
++    } :text
++    .data ALIGN(0x1) : {
++        *(.data .data.*)
++        . = ALIGN(SECTION_ALIGN);
++        _edata = .;
++    } :text
++    .bss ALIGN(0x1) : {
++        __bss_start = .;
++        *(.bss .bss.*)
++        *(COMMON)
++        . = ALIGN(SECTION_ALIGN);
++        _end = .;
++    } :text
++    /DISCARD/ : {
++        *(.interp)
++        *(.note*)
++        *(.comment)
++        *(.build-id)
++    }
++}
+diff --git a/grub-core/Makefile.core.def b/grub-core/Makefile.core.def
+index 0cf155128..1a91e53d6 100644
+--- a/grub-core/Makefile.core.def
++++ b/grub-core/Makefile.core.def
+@@ -10,6 +10,7 @@ transform_data = {
+   installdir = noinst;
+   name = genmod.sh;
+   common = genmod.sh.in;
++  i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+ };
+ 
+ transform_data = {
+@@ -82,21 +83,21 @@ kernel = {
+   riscv64_efi_stripflags   = '--strip-unneeded -K start -R .note -R .comment -R .note.gnu.gold-version -R .eh_frame';
+ 
+   i386_pc_ldflags          = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags          = '$(TARGET_IMG_BASE_LDOPT),0x9000';
++  i386_pc_ldflags          = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x9000';
+   i386_qemu_ldflags        = '$(TARGET_IMG_LDFLAGS)';
+-  i386_qemu_ldflags        = '$(TARGET_IMG_BASE_LDOPT),0x9000';
++  i386_qemu_ldflags        = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x9000';
+   i386_coreboot_ldflags    = '$(TARGET_IMG_LDFLAGS)';
+-  i386_coreboot_ldflags    = '$(TARGET_IMG_BASE_LDOPT),0x9000';
++  i386_coreboot_ldflags    = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x9000';
+   i386_multiboot_ldflags   = '$(TARGET_IMG_LDFLAGS)';
+-  i386_multiboot_ldflags   = '$(TARGET_IMG_BASE_LDOPT),0x9000';
++  i386_multiboot_ldflags   = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x9000';
+   i386_ieee1275_ldflags    = '$(TARGET_IMG_LDFLAGS)';
+-  i386_ieee1275_ldflags    = '$(TARGET_IMG_BASE_LDOPT),0x10000';
++  i386_ieee1275_ldflags    = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x10000';
+   i386_xen_ldflags         = '$(TARGET_IMG_LDFLAGS)';
+-  i386_xen_ldflags         = '$(TARGET_IMG_BASE_LDOPT),0';
++  i386_xen_ldflags         = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0';
+   x86_64_xen_ldflags       = '$(TARGET_IMG_LDFLAGS)';
+   x86_64_xen_ldflags       = '$(TARGET_IMG_BASE_LDOPT),0';
+   i386_xen_pvh_ldflags     = '$(TARGET_IMG_LDFLAGS)';
+-  i386_xen_pvh_ldflags     = '$(TARGET_IMG_BASE_LDOPT),0x100000';
++  i386_xen_pvh_ldflags     = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x100000';
+ 
+   mips_loongson_ldflags    = '-Wl,-Ttext,0x80200000';
+   powerpc_ieee1275_ldflags = '-Wl,-Ttext,0x200000';
+@@ -450,10 +451,10 @@ image = {
+   sparc64_ieee1275 = boot/sparc64/ieee1275/boot.S;
+ 
+   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
++  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x7C00';
+ 
+   i386_qemu_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_qemu_ldflags = '$(TARGET_IMG_BASE_LDOPT),$(GRUB_BOOT_MACHINE_LINK_ADDR)';
++  i386_qemu_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)$(GRUB_BOOT_MACHINE_LINK_ADDR)';
+   i386_qemu_ccasflags = '-DGRUB_BOOT_MACHINE_LINK_ADDR=$(GRUB_BOOT_MACHINE_LINK_ADDR)';
+ 
+   /* The entry point for a.out binaries on sparc64 starts
+@@ -478,7 +479,7 @@ image = {
+   cppflags = '-DHYBRID_BOOT=1';
+   
+   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
++  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x7C00';
+ 
+   objcopyflags = '-O binary';
+   enable = i386_pc;
+@@ -489,7 +490,7 @@ image = {
+ 
+   i386_pc = boot/i386/pc/cdboot.S;
+   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
++  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x7C00';
+ 
+   sparc64_ieee1275 = boot/sparc64/ieee1275/boot.S;
+ 
+@@ -509,7 +510,7 @@ image = {
+   i386_pc = boot/i386/pc/pxeboot.S;
+ 
+   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x7C00';
++  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x7C00';
+ 
+   objcopyflags = '-O binary';
+   enable = i386_pc;
+@@ -520,7 +521,7 @@ image = {
+   i386_pc = boot/i386/pc/diskboot.S;
+ 
+   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x8000';
++  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x8000';
+ 
+   sparc64_ieee1275 = boot/sparc64/ieee1275/diskboot.S;
+   sparc64_ieee1275_ldflags = '-Wl,-Ttext=0x4200';
+@@ -536,7 +537,7 @@ image = {
+   i386_pc = boot/i386/pc/lnxboot.S;
+ 
+   i386_pc_ldflags = '$(TARGET_IMG_LDFLAGS)';
+-  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT),0x6000';
++  i386_pc_ldflags = '$(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x6000';
+ 
+   objcopyflags = '-O binary';
+   enable = i386_pc;
+@@ -578,7 +579,7 @@ image = {
+   i386_pc_nodist = rs_decoder.h;
+ 
+   objcopyflags = '-O binary';
+-  ldflags = '$(TARGET_IMG_LDFLAGS) $(TARGET_IMG_BASE_LDOPT),0x8200';
++  ldflags = '$(TARGET_IMG_LDFLAGS) $(TARGET_IMG_BASE_LDOPT)$(TARGET_IMG_BASE_LDOPT_ARG_SEP)0x8200';
+   enable = i386_pc;
+ };
+ 
+-- 
+2.53.0
+

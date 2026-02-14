@@ -1,0 +1,58 @@
+From 5159a5ed22fbd861c833499a230004faca8073fc Mon Sep 17 00:00:00 2001
+Message-ID: <5159a5ed22fbd861c833499a230004faca8073fc.1771028573.git.nvinson234@gmail.com>
+In-Reply-To: <cover.1771028573.git.nvinson234@gmail.com>
+References: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Tue, 3 Feb 2026 08:33:46 -0500
+Subject: [PATCH v3 3/9] i386-cygwin-img-ld.sc -> i386-cygwin-img.lds
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+Rename i386-cygwin-img-ld.sc to i386-cygwin-img.lds as 'lds' is the
+preferred extension for linker scripts.
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+---
+ conf/Makefile.extra-dist                            | 2 +-
+ conf/{i386-cygwin-img-ld.sc => i386-cygwin-img.lds} | 0
+ configure.ac                                        | 4 ++--
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+ rename conf/{i386-cygwin-img-ld.sc => i386-cygwin-img.lds} (100%)
+
+diff --git a/conf/Makefile.extra-dist b/conf/Makefile.extra-dist
+index 892df8208..393693ffc 100644
+--- a/conf/Makefile.extra-dist
++++ b/conf/Makefile.extra-dist
+@@ -16,7 +16,7 @@ EXTRA_DIST += docs/autoiso.cfg
+ EXTRA_DIST += docs/grub.cfg
+ EXTRA_DIST += docs/osdetect.cfg
+ 
+-EXTRA_DIST += conf/i386-cygwin-img-ld.sc
++EXTRA_DIST += conf/i386-cygwin-img.lds
+ EXTRA_DIST += conf/i386-pc-kernel.lds
+ 
+ EXTRA_DIST += grub-core/Makefile.core.def
+diff --git a/conf/i386-cygwin-img-ld.sc b/conf/i386-cygwin-img.lds
+similarity index 100%
+rename from conf/i386-cygwin-img-ld.sc
+rename to conf/i386-cygwin-img.lds
+diff --git a/configure.ac b/configure.ac
+index d8ca1b7c1..2827ae2c1 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1458,9 +1458,9 @@ if test x$grub_cv_target_cc_link_format = x-arch,i386 || test x$grub_cv_target_c
+ elif test x$grub_cv_target_cc_link_format = x-mi386pe || test x$grub_cv_target_cc_link_format = x-mi386pep ; then
+   TARGET_APPLE_LINKER=0
+   TARGET_LDFLAGS_OLDMAGIC="-Wl,-N"
+-  TARGET_IMG_LDSCRIPT='$(top_srcdir)'"/conf/i386-cygwin-img-ld.sc"
++  TARGET_IMG_LDSCRIPT='$(top_srcdir)'"/conf/i386-cygwin-img.lds"
+   TARGET_IMG_LDFLAGS="-Wl,-T${TARGET_IMG_LDSCRIPT}"
+-  TARGET_IMG_LDFLAGS_AC="-Wl,-T${srcdir}/conf/i386-cygwin-img-ld.sc"
++  TARGET_IMG_LDFLAGS_AC="-Wl,-T${srcdir}/conf/i386-cygwin-img.lds"
+   TARGET_IMG_CFLAGS=
+ else
+   TARGET_APPLE_LINKER=0
+-- 
+2.53.0
+

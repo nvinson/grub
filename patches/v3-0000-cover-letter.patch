@@ -1,0 +1,114 @@
+From 054f370a15cfdb576ff6b4a191c6f8a895843336 Mon Sep 17 00:00:00 2001
+Message-ID: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Fri, 13 Feb 2026 19:22:53 -0500
+Subject: [PATCH v3 0/9] Improve ld.lld-21+ compatibility when building i386-pc target
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+Starting with ld.llvm-21, any attempt create a non-relocatable binary and set
+one more secton addresses below 0x400000 results in a linker error. Furthermore,
+the differences between ld.bfd and ld.lld made finding a proper set of
+command-line flags tht worked with both linkers and bypass the image base
+address restriction difficult. Therefore, the approach of using a custom linker
+script was adopted to solve the issue.
+
+This approach was tested using:
+
+../configure CC=clang CXX=clang++ LDFLAGS="-fuse-ld=lld" TARGET_LDFLAGS="-fuse-ld=lld" --with-platform=pc
+../configure CC=clang CXX=clang++ --with-platform=pc (both with ld.lld as the default and ld.bfd as the default)
+../configure CC=gcc CXX=g++ --with-platform=pc
+
+and a VM was used for testing. To build the disk images the VM was booted with,
+the following scripts were used:
+
+EFI disk:
+--- /dev/null	2026-01-18 13:24:44.262332704 -0500
++++ efi_disk_image.sh	2026-01-25 11:17:33.554420324 -0500
+@@ -0,0 +1,23 @@
++#!/bin/sh
++
++set -xe
++
++dd if=/dev/zero of=grub.img bs=1M count=100 status=progress
++
++sfdisk --force --no-reread --no-tell-kernel grub.img <<EOF
++label: gpt
++label-id: ABEB6772-65C7-4391-BF21-B616916286B9
++size=1M, type=21686148-6449-6E6F-744E-656564454649, uuid=9892A604-439E-4401-A372-AAD5E99EADBB
++type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=FCE5EBB3-C887-4FDE-93C5-7670CC3914BF
++EOF
++
++LOOP_DEV=$(losetup --show -fP grub.img)
++sleep 1
++
++mkfs.ext4 -F "${LOOP_DEV}p2"
++
++mount "${LOOP_DEV}p2" /mnt/gentoo
++./grub-install -v --directory ./grub-core --locale-directory /usr/share/locale --boot-directory=/mnt/gentoo "${LOOP_DEV}"
++
++umount "${LOOP_DEV}p2"
++losetup -d "${LOOP_DEV}"
+-- 
+
+MBR image:
+--- /dev/null	2026-01-18 13:24:44.262332704 -0500
++++ mbr_disk_image.sh	2026-01-25 11:17:24.129208591 -0500
+@@ -0,0 +1,22 @@
++#!/bin/sh
++
++set -xe
++
++dd if=/dev/zero of=grub.img bs=1M count=100 status=progress
++
++sfdisk --force --no-reread --no-tell-kernel grub.img <<EOF
++label: dos
++label-id: 0x12345678
++type=83, bootable
++EOF
++
++LOOP_DEV=$(losetup --show -fP grub.img)
++sleep 1
++
++mkfs.ext4 -F -O ^has_journal "${LOOP_DEV}p1"
++
++mount "${LOOP_DEV}p1" /mnt/gentoo
++./grub-install -v --directory ./grub-core --locale-directory /usr/share/locale --boot-directory=/mnt/gentoo "${LOOP_DEV}"
++
++umount "${LOOP_DEV}p1"
++losetup -d "${LOOP_DEV}"
+-- 
+
+In all cases, the VM successfully booted to the standard GRUB prompt.
+
+Nicholas Vinson (9):
+  i386/pc/int.h: conditionally apply regparm attr.
+  grub-core: Update kernel image generation
+  i386-cygwin-img-ld.sc -> i386-cygwin-img.lds
+  Revert "configure: Print a more helpful error if autoconf-archive is
+    not installed"
+  Revert "configure: Check linker for --image-base support"
+  Revert "INSTALL: Add note that the GNU Autoconf Archive may be needed"
+  configure: drop -Ttext checks for i386-pc
+  configure.ac: Add --image-base check for non-i386
+  conf/i386-cygwin-img.lds: Update to use _grub_text_base symbol
+
+ .gitignore                                    |  3 +-
+ INSTALL                                       |  1 -
+ acinclude.m4                                  | 18 ++++--
+ conf/Makefile.extra-dist                      |  3 +-
+ ...6-cygwin-img-ld.sc => i386-cygwin-img.lds} |  1 +
+ conf/i386-pc-kernel.lds                       | 51 ++++++++++++++++
+ configure.ac                                  | 61 ++++++++++++-------
+ grub-core/Makefile.core.def                   | 31 +++++-----
+ include/grub/i386/pc/int.h                    |  5 +-
+ m4/ax_check_link_flag.m4                      | 53 ++++++++++++++++
+ 10 files changed, 181 insertions(+), 46 deletions(-)
+ rename conf/{i386-cygwin-img-ld.sc => i386-cygwin-img.lds} (97%)
+ create mode 100644 conf/i386-pc-kernel.lds
+ create mode 100644 m4/ax_check_link_flag.m4
+
+-- 
+2.53.0
+

@@ -1,0 +1,34 @@
+From 4005d0fae57f37c661a5e7ef00df0af8a0a28cb0 Mon Sep 17 00:00:00 2001
+Message-ID: <4005d0fae57f37c661a5e7ef00df0af8a0a28cb0.1771028573.git.nvinson234@gmail.com>
+In-Reply-To: <cover.1771028573.git.nvinson234@gmail.com>
+References: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Tue, 3 Feb 2026 09:12:09 -0500
+Subject: [PATCH v3 6/9] Revert "INSTALL: Add note that the GNU Autoconf
+ Archive may be needed"
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+This reverts commit a90ccbac677db62fc0c1940cda4388370ac8a04b.
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+---
+ INSTALL | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/INSTALL b/INSTALL
+index 7ac1c7cc8..7e5397f58 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -56,7 +56,6 @@ need the following.
+ * Python 3 (NOTE: python 2.6 should still work, but it's not tested)
+ * Autoconf 2.64 or later
+ * Automake 1.14 or later
+-* GNU Autoconf Archive (autoconf-archive on Debian)
+ 
+ Your distro may package cross-compiling toolchains such as the following
+ incomplete list on Debian: gcc-aarch64-linux-gnu, gcc-arm-linux-gnueabihf,
+-- 
+2.53.0
+

@@ -1,0 +1,52 @@
+From 054f370a15cfdb576ff6b4a191c6f8a895843336 Mon Sep 17 00:00:00 2001
+Message-ID: <054f370a15cfdb576ff6b4a191c6f8a895843336.1771028573.git.nvinson234@gmail.com>
+In-Reply-To: <cover.1771028573.git.nvinson234@gmail.com>
+References: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Thu, 12 Feb 2026 07:25:38 -0500
+Subject: [PATCH v3 9/9] conf/i386-cygwin-img.lds: Update to use
+ _grub_text_base symbol
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+This patch updates conf/i386-cygwin-img.lds to use the _grub_text_base
+symbol just like conf/i386-pc-kernel.lds. It also updates configure.ac
+to account for this change.
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+---
+ conf/i386-cygwin-img.lds | 1 +
+ configure.ac             | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/conf/i386-cygwin-img.lds b/conf/i386-cygwin-img.lds
+index 578da91b0..26935ce92 100644
+--- a/conf/i386-cygwin-img.lds
++++ b/conf/i386-cygwin-img.lds
+@@ -2,6 +2,7 @@
+ 
+ SECTIONS
+ {
++  . = _grub_image_base;
+   .text :
+   {
+     start = . ;
+diff --git a/configure.ac b/configure.ac
+index 94218e014..6367afddc 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1453,8 +1453,8 @@ if test x$grub_cv_target_cc_link_format = x-arch,i386 || test x$grub_cv_target_c
+    TARGET_IMG_CFLAGS="-static"
+    TARGET_IMG_LDFLAGS='-nostdlib -static -Wl,-preload -Wl,-segalign,20'
+    TARGET_IMG_LDFLAGS_AC='-nostdlib -static -Wl,-preload -Wl,-segalign,20'
+-   TARGET_IMG_BASE_LDOPT="-Wl,-image_base"
+-   TARGET_IMG_BASE_LDOPT_ARG_SEP=","
++   TARGET_IMG_BASE_LDOPT="-Wl,--defsym,_grub_text_base"
++   TARGET_IMG_BASE_LDOPT_ARG_SEP="="
+    TARGET_LDFLAGS_OLDMAGIC=""
+ elif test x$grub_cv_target_cc_link_format = x-mi386pe || test x$grub_cv_target_cc_link_format = x-mi386pep ; then
+   TARGET_APPLE_LINKER=0
+-- 
+2.53.0
+

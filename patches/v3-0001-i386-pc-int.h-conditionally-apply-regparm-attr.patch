@@ -1,0 +1,43 @@
+From 54819ca3d7dc0f5e76ea2ca5187fa431d2f8fbcf Mon Sep 17 00:00:00 2001
+Message-ID: <54819ca3d7dc0f5e76ea2ca5187fa431d2f8fbcf.1771028573.git.nvinson234@gmail.com>
+In-Reply-To: <cover.1771028573.git.nvinson234@gmail.com>
+References: <cover.1771028573.git.nvinson234@gmail.com>
+From: Nicholas Vinson <nvinson234@gmail.com>
+Date: Sun, 18 Jan 2026 17:06:33 -0500
+Subject: [PATCH v3 1/9] i386/pc/int.h: conditionally apply regparm attr.
+To: grub-devel@gnu.org,
+    dkiper@net-space.pl,
+    floppym@gentoo.org
+
+Modern compilers are becoming more strict and are starting to warn when
+certain attributs are ignored. The regparam attribute is such an
+attribute.
+
+Update the code so the regparam attribute is only appled when building
+against i386 targets as that is the only scenario when it is not
+ignored.
+
+Signed-off-by: Nicholas Vinson <nvinson234@gmail.com>
+---
+ include/grub/i386/pc/int.h | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/include/grub/i386/pc/int.h b/include/grub/i386/pc/int.h
+index a60104001..4b569ca25 100644
+--- a/include/grub/i386/pc/int.h
++++ b/include/grub/i386/pc/int.h
+@@ -24,7 +24,10 @@
+ 
+ void EXPORT_FUNC (grub_bios_interrupt) (grub_uint8_t intno,
+ 					struct grub_bios_int_registers *regs)
+-     __attribute__ ((regparm(3)));
++#if defined(__i386__) && !defined(__x86_64__)
++     __attribute__ ((regparm(3)))
++#endif
++;
+ 
+ #ifdef GRUB_MACHINE_PCBIOS
+ extern struct grub_i386_idt *EXPORT_VAR(grub_realidt);
+-- 
+2.53.0
+
